@@ -1,0 +1,22 @@
+# meanweather.net
+
+> Mean Weather compares nine global weather forecast models side by side, one row per day. Every cell shows the minimum, mean and maximum forecast across the models, so the spread between them is visible at a glance. Free, no account, nothing tracked; everything runs in the browser.
+
+Models compared (via Open-Meteo, all keyless and open): ECMWF IFS, ECMWF AIFS (AI), NOAA GFS, DWD ICON, Met Office UKMO, Météo-France ARPEGE, ECCC GEM, JMA and CMA GRAPES. The "seamless" variants blend each agency's regional high-resolution model where one exists, so the same nine sources work anywhere in the world.
+
+Columns (user-selectable and re-orderable, 19 available): high and low temperature, feels-like high and low, rain, chance of precipitation, wet hours, snow, wind, wind average, gusts, wind direction (circular mean), cloud cover, humidity, dew point, pressure, sunshine hours, UV index and a "Sky" summary (the most common WMO weather code). Default view: High, Low, Rain, Chance, Wind, Sky.
+
+Each day expands into hourly rows (or 3-hour blocks) with the same min/mean/max format. Hovering or tapping a cell lists every model's value, lowest to highest. Purple outer numbers flag disagreement between models. Small arrows on High, Low and Rain show whether the models' mean has moved since their run three days ago, using Open-Meteo's previous-runs archive.
+
+Place search uses Photon (OpenStreetMap data) with Open-Meteo's geocoder as fallback; "Find me" uses the browser's location only when clicked. Privacy: the chosen coordinates are sent to Open-Meteo and the search text (or Find-me position) to Photon, all over HTTPS; nothing else leaves the browser and there are no cookies or analytics. Units switch between °C/km/h/mm and °F/mph/in.
+
+Technical: single static page (index.html, style.css, app.js), MIT-licensed, no build step, no backend, no analytics. Forecast data © Open-Meteo (CC BY 4.0); place data © OpenStreetMap contributors.
+
+## Links
+
+- [Forecast table](https://meanweather.net/): the app itself
+- [Shareable view](https://meanweather.net/?at=51.5074,-0.1278&n=London): `?at=lat,lon` opens a place directly; optional `n=` (name), `cols=` (comma-separated column keys), `units=imperial`, `step=3`
+
+## Contact
+
+- adam@meanweather.net

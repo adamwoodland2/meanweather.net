@@ -1,0 +1,20 @@
+{
+	"id": "/",
+	"lang": "en-GB",
+	"dir": "ltr",
+	"categories": ["weather", "utilities"],
+	"name": "Mean Weather — nine forecast models, one table",
+	"short_name": "Mean Weather",
+	"description": "Compare nine global weather models side by side: min, mean and max for temperature, rain, wind and more, one row per day.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "any",
+	"background_color": "#0f172a",
+	"theme_color": "#0f172a",
+	"icons": [
+		{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+		{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+		{ "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+	]
+}

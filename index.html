@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mean Weather — nine forecast models, one table</title>
+<meta name="description" content="Compare nine global weather models side by side: the min, mean and max forecast for temperature, rain, wind and more, one row per day with hourly detail on demand. Free, no account, nothing tracked.">
+<meta name="keywords" content="weather model comparison, compare weather models, ECMWF vs GFS, multi-model forecast, forecast model spread, ECMWF, GFS, ICON, UKMO, ARPEGE, GEM, JMA, Open-Meteo">
+<link rel="canonical" href="https://meanweather.net/">
+
+<meta property="og:type"        content="website">
+<meta property="og:url"         content="https://meanweather.net/">
+<meta property="og:site_name"   content="meanweather.net">
+<meta property="og:title"       content="Mean Weather — nine forecast models, one table">
+<meta property="og:description" content="Every cell shows the min, mean and max across nine global weather models, one row per day. Free, no account, nothing tracked.">
+<meta property="og:image"       content="https://meanweather.net/og-image.png">
+<meta property="og:image:width"  content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt"   content="Mean Weather: a forecast table where each cell shows the minimum, mean and maximum across nine weather models">
+<meta property="og:locale"      content="en_GB">
+<meta name="twitter:card"        content="summary_large_image">
+<meta name="twitter:title"       content="Mean Weather — nine forecast models, one table">
+<meta name="twitter:description" content="Every cell shows the min, mean and max across nine global weather models, one row per day. Free, no account, nothing tracked.">
+<meta name="twitter:image"       content="https://meanweather.net/og-image.png">
+
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#b7cde2">
+<meta name="robots" content="index, follow">
+<link rel="stylesheet" href="style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Mean Weather",
+  "alternateName": "meanweather.net",
+  "url": "https://meanweather.net/",
+  "description": "Compare nine global weather forecast models side by side. Every cell shows the minimum, mean and maximum forecast across the models, one row per day, with hourly detail on demand. Runs entirely in the browser; free, no account, nothing tracked.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any",
+  "browserRequirements": "Requires JavaScript",
+  "inLanguage": "en-GB",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
+  "author": { "@type": "Person", "name": "Adam Woodland", "url": "https://adamwoodland.com/" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What do the three numbers in a cell mean?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The lowest, the mean (or the median, switchable in the toolbar) and the highest forecast across the weather models that are switched on. Purple outer numbers mean the models disagree by more than usual for that column." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which weather models are compared?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Nine global models, fetched through Open-Meteo: ECMWF IFS, ECMWF AIFS (AI), NOAA GFS, DWD ICON, Met Office UKMO, Météo-France ARPEGE, ECCC GEM, JMA and CMA GRAPES. The seamless variants blend in each agency's regional high-resolution model where one exists, so the same list works anywhere in the world." }
+    },
+    {
+      "@type": "Question",
+      "name": "What do the small arrows mean?",
+      "acceptedAnswer": { "@type": "Answer", "text": "On High, Low and Rain, an arrow shows that the models' average has moved by at least 1 degree or 1 mm since their run three days ago, using Open-Meteo's archive of previous runs. Hover or tap the cell for the numbers." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is anything tracked or uploaded?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Nothing is tracked: no cookies, no accounts, no analytics. Two things do leave your browser, both over HTTPS: the coordinates of the place you choose go to Open-Meteo to fetch the forecasts, and the text you type in the search box (or your position, if you press Find me) goes to Photon to look the place up. Your settings are stored in this browser only." }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav id="tabs" class="tabs" aria-label="Recent places" hidden></nav>
+
+<header class="top">
+  <div class="brand">
+    <h1>Mean Weather</h1>
+    <p class="sub">Nine global models, one row per day: <span class="k lo">min</span> <strong class="k mean">mean</strong> <span class="k hi">max</span>, purple when they disagree. Click a day for hours, tap or hover a cell for each model.</p>
+  </div>
+  <div class="where">
+    <form class="loc" id="locForm" autocomplete="off" role="search">
+      <input id="locInput" type="search" placeholder="Search a place…" aria-label="Search a place" required>
+      <button type="submit">Go</button>
+      <button type="button" id="findMe" class="ghost" title="Use this device's location (asks permission)">Find me</button>
+      <ul id="locResults" class="results" hidden></ul>
+    </form>
+    <div class="place">
+      <h2 id="placeName">Loading…</h2>
+      <p id="placeMeta" class="meta"></p>
+    </div>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+  <section class="fc-wrap">
+    <table class="fc" id="fcTable">
+      <thead>
+        <tr>
+          <th class="when" scope="col">Day</th>
+        </tr>
+      </thead>
+    </table>
+    <p id="status" class="status" role="status"></p>
+  </section>
+
+  <div class="bar">
+    <button type="button" id="srcBtn" class="ghost tog-panel" aria-expanded="false" aria-controls="srcPanel">
+      <span class="chev" aria-hidden="true"></span>Sources <span id="srcCount" class="count"></span></button>
+    <button type="button" id="colsBtn" class="ghost tog-panel" aria-expanded="false" aria-controls="colsPanel">
+      <span class="chev" aria-hidden="true"></span>Columns <span id="colCount" class="count"></span></button>
+    <button type="button" id="expandAll" class="ghost" disabled>Expand all</button>
+    <div id="step" class="seg" role="group" aria-label="Hour rows" title="Hour rows when a day is expanded: every hour, or 3-hour blocks (rain and sunshine summed, the rest averaged)">
+      <button type="button" data-step="1" aria-pressed="false">1 h</button>
+      <button type="button" data-step="3" aria-pressed="true">3 h</button>
+    </div>
+    <div id="avg" class="seg" role="group" aria-label="Middle number" title="The middle number in every cell: the mean or the median of the models. Wind direction always uses a circular mean.">
+      <button type="button" data-avg="mean" aria-pressed="true">Mean</button>
+      <button type="button" data-avg="median" aria-pressed="false">Median</button>
+    </div>
+    <div id="mode" class="seg" role="group" aria-label="Colour mode" title="Colour follows the current weather at this place, day or night. Dark is plain black.">
+      <button type="button" data-mode="colour" aria-pressed="true">Colour</button>
+      <button type="button" data-mode="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div id="units" class="seg" role="group" aria-label="Units">
+      <button type="button" data-units="metric" aria-pressed="true">°C · km/h · mm</button>
+      <button type="button" data-units="imperial" aria-pressed="false">°F · mph · in</button>
+    </div>
+  </div>
+
+  <section id="srcPanel" class="panel" hidden aria-label="Forecast sources">
+    <p class="hint">Untick a model to leave it out of every cell. The number is how many days ahead that model reaches here.
+      All "seamless" models blend in that agency's regional high-resolution model where one exists.
+      (Australia's BoM ACCESS-G is not listed: Open-Meteo has published no data for it recently.)</p>
+    <ul id="sourceList" class="chips"></ul>
+  </section>
+
+  <section id="colsPanel" class="panel" hidden aria-label="Choose and order columns">
+    <p class="hint">Tick a column to show it. Drag the handle, or use the arrows, to change the order.
+      Two neighbouring columns that share an hourly value (High + Low, Wind + Wind avg) merge into one cell in the hour rows.</p>
+    <ol id="colList" class="collist"></ol>
+    <div class="panel-actions">
+      <button type="button" id="colsReset" class="ghost">Reset to default</button>
+    </div>
+  </section>
+
+  <div id="pop" class="pop" hidden role="dialog" aria-label="Details"></div>
+
+  <noscript><p class="status">Mean Weather needs JavaScript to fetch and compare the forecasts. Nothing is tracked with it.</p></noscript>
+
+  <details class="about">
+    <summary>About Mean Weather</summary>
+    <dl>
+      <dt>What do the three numbers in a cell mean?</dt>
+      <dd>The lowest, the mean (or the median, switchable in the toolbar) and the highest forecast across the weather models that are switched on. Purple outer numbers mean the models disagree by more than usual for that column.</dd>
+      <dt>Which weather models are compared?</dt>
+      <dd>Nine global models, fetched through Open-Meteo: ECMWF IFS, ECMWF AIFS (AI), NOAA GFS, DWD ICON, Met Office UKMO, Météo-France ARPEGE, ECCC GEM, JMA and CMA GRAPES. The "seamless" variants blend in each agency's regional high-resolution model where one exists, so the same list works anywhere in the world.</dd>
+      <dt>What do the small arrows mean?</dt>
+      <dd>On High, Low and Rain, an arrow shows that the models' average has moved by at least 1° or 1 mm since their run three days ago, using Open-Meteo's archive of previous runs. Hover or tap the cell for the numbers.</dd>
+      <dt>Is anything tracked or uploaded?</dt>
+      <dd>Nothing is tracked: no cookies, no accounts, no analytics. Two things do leave your browser, both over HTTPS: the coordinates of the place you choose go to Open-Meteo to fetch the forecasts, and the text you type in the search box (or your position, if you press "Find me") goes to Photon to look the place up. Your settings are stored in this browser only.</dd>
+    </dl>
+  </details>
+
+  <p class="footer">Forecast data via <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0), trend arrows from its previous-runs archive.
+    Place search by <a href="https://photon.komoot.io/" rel="noopener">Photon</a>, data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors.
+    Over HTTPS, the coordinates of the place you choose go to Open-Meteo and your search text (or "Find me" position, only when you press it) goes to Photon; nothing else leaves this browser, and no cookies or analytics are used. Place, units, sources and columns are stored locally.
+    Free, open source (MIT). Questions: <a href="mailto:adam@meanweather.net">adam@meanweather.net</a></p>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
