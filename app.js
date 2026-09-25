@@ -1122,6 +1122,19 @@
     e.className = 'status' + (err ? ' err' : '');
   }
 
+  // after a few seconds of waiting, say so (Open-Meteo occasionally takes 10 s+)
+  var SLOW_MS = 4000;
+  function armSlowNote(token) {
+    setTimeout(function () {
+      if (token !== state.token) return;
+      if (state.data && state.hourlyReady && state.prevReady) return;
+      var el = $('#status');
+      if (el.textContent && !el.classList.contains('err') && el.textContent.indexOf('longer than usual') < 0) {
+        el.textContent += ' This is taking longer than usual, please wait.';
+      }
+    }, SLOW_MS);
+  }
+
   function loadingStatus() {
     if (!state.data) return;
     var waiting = [];
@@ -1139,6 +1152,7 @@
     var place = state.place;
     closePop();
     setStatus('Fetching ' + MODELS.length + ' models…');
+    armSlowNote(token);
     renderPlace();
     state.data = null;
     state.hourlyReady = state.prevReady = false;
@@ -1157,6 +1171,7 @@
       renderTable();
       applyTheme();   // today's sky, day/night from the clock
       loadingStatus();
+      armSlowNote(token);   // the hourly and trend requests can be slow too
 
       fetchHourly(place).then(function (jh) {
         if (token !== state.token) return;
