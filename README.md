@@ -38,7 +38,10 @@ agree and where they don't. Free, no account, no adverts, nothing tracked.
   numbers, a vector (circular) mean for wind direction, the mode for weather codes. In the
   3-hour view rain, snow and sunshine are summed per model and everything else averaged.
 - Place, units, step, model toggles and column layout are kept in `localStorage` and mirrored
-  into the URL (`?at=lat,lon&n=…&cols=…&units=…&step=…`), so a link reproduces a view.
+  into the URL (`?at=lat,lon&n=…&cols=…&off=…&units=…&step=…&avg=…`), so a link reproduces a view
+  exactly, including which models were switched off. `tmp=1` shows a place without remembering it.
+- An open tab re-fetches after an hour, or on return after 30 minutes away, and moves the
+  current-hour highlight and sky theme each hour; the place line shows when the data arrived.
 
 ## Data and licences
 

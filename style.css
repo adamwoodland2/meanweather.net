@@ -435,6 +435,9 @@ main:focus { outline: none; }
 
 /* ---------- forecast table ---------- */
 
+/* while the table is empty, keep the space it will take so the toolbar below does not jump */
+.fc-wrap.loading { min-height: 470px; }
+
 .fc-wrap {
   margin-top: 6px;
   background: var(--card);
@@ -612,6 +615,8 @@ main:focus { outline: none; }
 .fc tr.h.note td { color: var(--faint); text-align: left; padding-left: 34px; font-style: italic; }
 .fc tr.h td.stat[data-c] { cursor: pointer; }
 .fc thead th[data-c] { cursor: help; }
+.fc td.stat:focus-visible, .fc th[data-c]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pop:focus { outline: none; }
 
 .status { margin: 0; padding: 12px; color: var(--dim); text-align: center; }
 .status:empty { display: none; }

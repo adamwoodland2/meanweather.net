@@ -15,7 +15,7 @@ Technical: single static page (index.html, style.css, app.js), MIT-licensed, no 
 ## Links
 
 - [Forecast table](https://meanweather.net/): the app itself
-- [Shareable view](https://meanweather.net/?at=51.5074,-0.1278&n=London): `?at=lat,lon` opens a place directly; optional `n=` (name), `cols=` (comma-separated column keys), `units=imperial`, `step=3`
+- [Shareable view](https://meanweather.net/?at=51.5074,-0.1278&n=London): `?at=lat,lon` opens a place directly; optional `n=` (name), `cols=` (comma-separated column keys), `off=` (model ids switched off), `units=imperial`, `step=1`, `avg=median`, `tmp=1` (show without remembering)
 
 ## Related
 

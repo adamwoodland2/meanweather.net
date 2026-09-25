@@ -159,6 +159,9 @@
     data: null,           // see normaliseDaily(); hours + prev attached later
     hourlyReady: false,
     prevReady: false,
+    hourlyError: null,    // sticks until the next refresh, even after the trend request succeeds
+    fetchedAt: 0,         // when the daily forecast last arrived (drives the 'updated' note and re-fetching)
+    nowShown: '',         // the hour key the table was last rendered for
     open: {},             // date -> boolean (expanded)
     token: 0              // bumps on every refresh; stale responses are dropped
   };
@@ -205,9 +208,11 @@
     if (gone === state.place) {
       var next = state.places[i - 1] || state.places[i] || null;
       if (next) { setPlace(next); return; }   // saves + refreshes
-      // nothing left: keep showing the current forecast, the tab strip just empties
+      // nothing left: keep showing this forecast as a temporary place, so nothing gets saved back
+      state.place = { name: gone.name, where: gone.where, lat: gone.lat, lon: gone.lon, temp: true };
+      state.savedPlace = null;
       save();
-      renderTabs();
+      renderPlace();
       return;
     }
     save();
@@ -269,7 +274,11 @@
     if (q.get('units') === 'imperial' || q.get('units') === 'metric') state.units = q.get('units');
     if (q.get('step') === '3' || q.get('step') === '1') state.step = +q.get('step');
     if (q.get('avg') === 'median' || q.get('avg') === 'mean') state.avg = q.get('avg');
-    if (q.get('cols')) state.cols = colsFromKeys(q.get('cols').split(','));
+    if (q.has('cols')) state.cols = colsFromKeys(q.get('cols') ? q.get('cols').split(',') : []);
+    if (q.has('off')) {   // models switched off, so a shared link reproduces the sender's numbers
+      var offIds = q.get('off').split(',');
+      MODELS.forEach(function (m) { state.enabled[m.id] = offIds.indexOf(m.id) < 0; });
+    }
   }
 
   function save() {
@@ -291,6 +300,8 @@
     if (state.place.where) q.set('w', state.place.where);
     var vis = state.cols.filter(function (c) { return c.on; }).map(function (c) { return c.key; });
     if (vis.join(',') !== DEFAULT_COLS.join(',')) q.set('cols', vis.join(','));
+    var off = MODELS.filter(function (m) { return !state.enabled[m.id]; }).map(function (m) { return m.id; });
+    if (off.length) q.set('off', off.join(','));
     if (imperial()) q.set('units', 'imperial');
     if (state.step === 1) q.set('step', '1');
     if (state.avg === 'median') q.set('avg', 'median');
@@ -737,6 +748,7 @@
     var kind = d.kind;
     var attrs = (span > 1 ? ' colspan="' + span + '"' : '') + ref;
     if (!d.n) return '<td class="stat none ' + kind.cls + '"' + attrs + '>—</td>';
+    attrs += ' tabindex="0" role="button" aria-haspopup="dialog"';   // keyboard: Enter/Space opens the popover
     var cls = 'stat ' + kind.cls + (d.wide ? ' wide' : '') + (d.zero ? ' zero' : '');
     var title = ' title="' + esc(tooltip(col, d)) + '"';
 
@@ -774,6 +786,9 @@
       t.scope = 'col';
       t.title = c.desc;
       t.dataset.c = c.key;
+      t.tabIndex = 0;
+      t.setAttribute('role', 'button');
+      t.setAttribute('aria-haspopup', 'dialog');
       var lbl = document.createElement('span');
       lbl.className = 'lbl';
       lbl.textContent = c.label;
@@ -792,6 +807,7 @@
   function renderTable() {
     var table = $('#fcTable');
     Array.prototype.slice.call(table.tBodies).forEach(function (b) { b.remove(); });
+    table.parentNode.classList.toggle('loading', !state.data);   // reserves the height (CLS)
     if (!state.data) return;
 
     var cols = visibleCols();
@@ -854,7 +870,13 @@
   var pop = null, popAnchor = null;
 
   function closePop() {
-    if (pop) { pop.hidden = true; popAnchor = null; }
+    if (!pop) return;
+    var back = popAnchor;
+    var hadFocus = pop.contains(document.activeElement);   // check before hiding: hiding blurs it
+    pop.hidden = true;
+    popAnchor = null;
+    // hand focus back to the cell or header that opened it (if it is still on the page)
+    if (back && back.isConnected && hadFocus) back.focus({ preventScroll: true });
   }
 
   function openPop(anchor, build) {
@@ -869,6 +891,8 @@
     var left = Math.max(8, Math.min(r.left + window.scrollX, window.scrollX + vw - w - 8));
     pop.style.left = left + 'px';
     pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+    pop.tabIndex = -1;
+    pop.focus({ preventScroll: true });
   }
 
   function el(tag, cls, text) {
@@ -1082,6 +1106,11 @@
       full.push(state.data.tz);
       if (state.data.elevation != null) bits.push(Math.round(state.data.elevation) + ' m');
     }
+    if (state.fetchedAt) {
+      var t = new Date(state.fetchedAt);
+      bits.push('updated ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      full.push('forecast fetched ' + t.toLocaleString() + '; it re-fetches after an hour while open, or on return to the tab after 30 minutes');
+    }
     var meta = $('#placeMeta');
     meta.textContent = bits.join(' · ');
     meta.title = full.join(' · ');
@@ -1098,7 +1127,9 @@
     var waiting = [];
     if (!state.hourlyReady) waiting.push('hourly detail');
     if (!state.prevReady) waiting.push('trend');
-    setStatus(waiting.length ? 'Loading ' + waiting.join(' and ') + '…' : '');
+    if (waiting.length) setStatus('Loading ' + waiting.join(' and ') + '…');
+    else if (state.hourlyError) setStatus(state.hourlyError, true);
+    else setStatus('');
   }
 
   /* ---------------- actions ---------------- */
@@ -1111,12 +1142,15 @@
     renderPlace();
     state.data = null;
     state.hourlyReady = state.prevReady = false;
+    state.hourlyError = null;
     renderTable();
     applyTheme();   // back to the neutral look while the new place loads
 
     fetchDaily(place).then(function (j) {
       if (token !== state.token) return;
       state.data = normaliseDaily(j);
+      state.fetchedAt = Date.now();
+      state.nowShown = nowKey(state.data.tz);
       renderPlace();
       renderSources();
       renderHead();
@@ -1134,7 +1168,8 @@
       }).catch(function (e) {
         if (token !== state.token) return;
         state.hourlyReady = true;
-        setStatus('Hourly detail unavailable: ' + e.message, true);
+        state.hourlyError = 'Hourly detail unavailable: ' + e.message;
+        loadingStatus();
       });
 
       fetchPrev(place).then(function (jp) {
@@ -1281,13 +1316,16 @@
 
     if (!navigator.geolocation) $('#findMe').hidden = true;
 
+    var searchSeq = 0;
     $('#locForm').addEventListener('submit', function (ev) {
       ev.preventDefault();
       var q = $('#locInput').value.trim();
       if (!q) return;
       hideResults();
       setStatus('Searching for “' + q + '”…');
+      var mine = ++searchSeq;
       geocode(q).then(function (list) {
+        if (mine !== searchSeq) return;   // a newer search has superseded this one
         loadingStatus();
         if (list.length === 1) { $('#locInput').value = ''; setPlace(list[0]); }
         else showResults(list);
@@ -1411,6 +1449,28 @@
       closePop();
       toggleDay(row.parentNode, !row.parentNode.classList.contains('open'));
     });
+    $('#fcTable').addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      var el = ev.target.closest('td.stat[data-c], th[data-c]');
+      if (!el) return;
+      ev.preventDefault();
+      if (el.tagName === 'TD') popForCell(el); else popForHead(el);
+    });
+
+    // keep an open tab honest: re-fetch stale runs, and move the 'now' highlight + sky theme each hour
+    var STALE_MS = 60 * 60 * 1000, RETURN_MS = 30 * 60 * 1000;
+    function maybeRefresh(limit) {
+      if (document.hidden || !state.place || !state.fetchedAt) return;
+      if (Date.now() - state.fetchedAt > limit) refresh();
+    }
+    setInterval(function () {
+      maybeRefresh(STALE_MS);
+      if (state.data && !document.hidden) {
+        var k = nowKey(state.data.tz);
+        if (k !== state.nowShown) { state.nowShown = k; closePop(); renderTable(); applyTheme(); }
+      }
+    }, 60 * 1000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) maybeRefresh(RETURN_MS); });
 
     if (state.place) { save(); refresh(); }
     else guessPlace().then(function (p) { state.place = rememberPlace(p); state.savedPlace = state.place; save(); refresh(); });
