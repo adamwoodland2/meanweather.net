@@ -102,7 +102,7 @@
     { key: 'gust',      label: 'Gusts',      kind: 'speed',  daily: 'wind_gusts_10m_max',            hourly: 'wind_gusts_10m',            wide: 20,
       desc: 'Strongest gust of the day at 10 m. Not published by ECMWF AIFS or JMA.' },
     { key: 'windDir',   label: 'Wind dir',   kind: 'dir',    daily: 'wind_direction_10m_dominant',   hourly: 'wind_direction_10m',        wide: 90,
-      desc: 'Direction the wind blows from. Middle: circular mean of the models. Outer: the most anticlockwise and clockwise models. Purple when they span 90° or more.' },
+      desc: 'Where the wind comes from. The arrow flies with the wind (a north wind points down the page); the outer letters are the most anticlockwise and clockwise models, and the tooltip lists each one. Purple when they span 90° or more.' },
     { key: 'cloud',     label: 'Cloud',      kind: 'pct',    daily: 'cloud_cover_mean',              hourly: 'cloud_cover',               wide: 40,
       desc: 'Total cloud cover as a share of the sky, averaged over the day.' },
     { key: 'humidity',  label: 'Humidity',   kind: 'pct',    daily: 'relative_humidity_2m_mean',     hourly: 'relative_humidity_2m',      wide: 25,
@@ -580,8 +580,47 @@
     return { value: best, agree: count[best] };
   }
 
+  /* Value colour for the big number: fixed, meaningful bands so red always means hot.
+   * Thresholds are metric; imperial values are converted back before banding. Only temperature,
+   * amounts, wind and UV get a colour - chance, cloud, humidity, pressure and sunshine stay plain. */
+  function toMetric(kind, v) {
+    if (!imperial()) return v;
+    if (kind.cls === 'deg') return (v - 32) / 1.8;
+    return v / kind.scale;   // in -> mm/cm, mph -> km/h
+  }
+  function band(col, v, hourly) {
+    var kind = KINDS[hourly && col.hkind ? col.hkind : col.kind];
+    var m = toMetric(kind, v);
+    switch (col.kind) {
+      case 'temp':
+        return m <= 0 ? 'v-cold2' : m < 10 ? 'v-cold' : m < 20 ? '' : m < 28 ? 'v-warm' : m < 35 ? 'v-hot' : 'v-hot2';
+      case 'precip':
+      case 'snow':
+        if (hourly) return m < 0.5 ? '' : m < 2 ? 'v-wet' : m < 5 ? 'v-wet2' : 'v-wet3';
+        return m < 2 ? '' : m < 10 ? 'v-wet' : m < 25 ? 'v-wet2' : 'v-wet3';
+      case 'speed':
+        if (col.key === 'gust') return m < 50 ? '' : m < 90 ? 'v-breezy' : 'v-gale';
+        return m < 30 ? '' : m < 50 ? 'v-breezy' : 'v-gale';
+      case 'uv':
+        return m < 3 ? '' : m < 6 ? 'v-uvmod' : m < 8 ? 'v-uvhigh' : m < 11 ? 'v-uvvhigh' : 'v-uvext';
+      default:
+        return '';
+    }
+  }
+
   function compass(deg) { return COMPASS[Math.round(deg / 22.5) % 16]; }
   function wmo(code) { return WMO[code] || ('Code ' + code); }
+  // WMO code -> sprite symbol + colour class for the Sky column
+  function skyIcon(code) {
+    if (code <= 1) return 'sun';
+    if (code === 2) return 'partly';
+    if (code === 3) return 'cloud';
+    if (code === 45 || code === 48) return 'fog';
+    if (code >= 95) return 'storm';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+    if (code >= 51 && code <= 57) return 'drizzle';
+    return 'rain';
+  }
   function enabledCount() { return MODELS.filter(function (m) { return state.enabled[m.id]; }).length; }
 
   // one model's values over a block of hours -> one value, by kind
@@ -697,14 +736,19 @@
     var s;
     if (kind.circular) {
       s = dirStat(per);
-      out.lo = compass(s.min); out.mean = compass(s.mean); out.hi = compass(s.max);
+      out.lo = compass(s.min); out.hi = compass(s.max);
+      // the arrow flies with the wind (from NE -> pointing south-west); 16 CSS rotation steps, no inline styles
+      out.mean = '<svg class="arrow rot-' + (Math.round(((s.mean + 180) % 360) / 22.5) % 16) + '" aria-hidden="true"><use href="#i-arrow"/></svg>' +
+        '<span class="sr">' + compass(s.mean) + '</span>';
       out.wide = col.wide != null && s.spread >= col.wide;
+      out.meanDeg = s.mean;
       out.rows = per.slice().sort(function (a, b) {
         return (((a.v - s.mean + 540) % 360) - 180) - (((b.v - s.mean + 540) % 360) - 180);
       }).map(function (p) { return { model: p.model, text: compass(p.v) + ' ' + Math.round(p.v) + '°' }; });
     } else {
       s = numStat(per);
       out.lo = kind.fmt(s.min, imp); out.mean = kind.fmt(s.mean, imp); out.hi = kind.fmt(s.max, imp);
+      out.meanRaw = s.mean;
       var thr = hourly && col.hwide != null ? col.hwide : col.wide;
       out.wide = thr != null && s.spread >= thr * (imp ? kind.scale : 1);
       out.zero = s.max === 0 && s.min === 0;
@@ -753,12 +797,13 @@
     var title = ' title="' + esc(tooltip(col, d)) + '"';
 
     if (kind.categorical) {
-      return '<td class="' + cls + '"' + title + attrs + '><span class="mean">' + esc(wmo(d.code)) +
-        '</span><span class="agree">' + d.agree + '/' + d.n + '</span></td>';
+      var ic = skyIcon(d.code);
+      return '<td class="' + cls + '"' + title + attrs + '><span class="mean"><svg class="ico ' + ic + '" aria-hidden="true"><use href="#i-' + ic + '"/></svg>' +
+        '<span class="txt">' + esc(wmo(d.code)) + '</span></span><span class="agree">' + d.agree + '/' + d.n + '</span></td>';
     }
     // one contributing model: show its value alone rather than a fake min/mean/max spread
     if (d.n === 1) {
-      return '<td class="' + cls + ' single"' + title + attrs + '><span class="mean">' + d.mean + (kind.sign || '') + '</span></td>';
+      return '<td class="' + cls + ' single"' + title + attrs + '><span class="mean ' + band(col, d.meanRaw, hourly) + '">' + d.mean + (kind.sign || '') + '</span></td>';
     }
     var drift = '';
     if (!hourly && col.drift) {
@@ -768,7 +813,7 @@
     }
     return '<td class="' + cls + '"' + title + attrs + '>' +
       '<span class="lo">' + d.lo + '</span>' +
-      '<span class="mean">' + d.mean + (kind.sign || '') + '</span>' +
+      '<span class="mean ' + (d.meanRaw != null ? band(col, d.meanRaw, hourly) : '') + '">' + d.mean + (kind.sign || '') + '</span>' +
       '<span class="hi">' + d.hi + '</span>' + drift + '</td>';
   }
 
@@ -822,7 +867,8 @@
       var open = !!state.open[day.date];
       shown++; if (open) opened++;
 
-      html += '<tbody class="day' + (open ? ' open' : '') + '" data-date="' + day.date + '">';
+      var wknd = lbl.dow === 'Sat' || lbl.dow === 'Sun';
+      html += '<tbody class="day' + (open ? ' open' : '') + (wknd ? ' wknd' : '') + '" data-date="' + day.date + '">';
       html += '<tr class="d">' +
         '<td class="when"><button class="tog" type="button" aria-expanded="' + open + '">' +
         '<span class="chev" aria-hidden="true"></span>' +
@@ -924,6 +970,7 @@
       var sum = el('p', 'n');
       if (kind.categorical) sum.textContent = d.agree + ' of ' + d.n + ' models say ' + wmo(d.code) + '.';
       else if (d.n === 1) sum.textContent = 'One source only, so no spread to show.';
+      else if (kind.circular) sum.textContent = 'from ' + d.lo + ' to ' + d.hi + ' (circular mean ' + compass(d.meanDeg) + ') · ' + d.n + ' of ' + d.N + ' sources';
       else sum.textContent = 'min ' + d.lo + ' · ' + state.avg + ' ' + d.mean + (kind.sign || '') + ' · max ' + d.hi +
         (kind.sign ? '' : ' ' + kind.unit(imperial())) + ' · ' + d.n + ' of ' + d.N + ' sources';
       box.appendChild(sum);
@@ -951,7 +998,7 @@
       var unit = KINDS[col.kind].unit(imperial());
       box.appendChild(el('h4', null, col.label + (unit ? ' · ' + unit : '')));
       box.appendChild(el('p', 'n', col.desc));
-      box.appendChild(el('p', 'trend', 'Cells read min · ' + state.avg + ' · max across the models; purple outer numbers mean they disagree.'));
+      box.appendChild(el('p', 'trend', 'Cells read min · ' + state.avg + ' · max across the models; purple outer numbers mean they disagree. The big number is tinted by its value: blue for cold or wet, orange and red for hot, strong wind or high UV.'));
     });
   }
 
@@ -1347,6 +1394,11 @@
       }).catch(function (e) { setStatus('Search failed: ' + e.message, true); });
     });
     $('#findMe').addEventListener('click', findMe);
+    $('#barToggle').addEventListener('click', function () {
+      var open = !$('#bar').classList.contains('open');
+      $('#bar').classList.toggle('open', open);
+      this.setAttribute('aria-expanded', String(open));
+    });
 
     // recent-places tabs: click to switch, × to forget
     $('#tabs').addEventListener('click', function (ev) {
