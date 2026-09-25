@@ -1062,6 +1062,30 @@
     });
   }
 
+  // tooltip on the word "disagree" in the tagline: the per-column thresholds behind the purple
+  function renderDisagree() {
+    var el = $('#disagree');
+    if (!el) return;
+    var imp = imperial(), parts = [];
+    COLUMNS.forEach(function (c) {
+      if (c.wide == null || c.kind === 'code') return;
+      var kind = KINDS[c.kind];
+      var thr = c.wide;
+      if (kind.circular) { parts.push(c.label + ' 90°'); return; }
+      if (imp) thr = thr * kind.scale;
+      var unit = kind.unit(imp);
+      var num = kind.fmt(thr, imp).replace(/\.0+$/, '');   // "5.0" -> "5"
+      var txt = kind.cls === 'sun' ? (c.wide / 3600) + ' h'
+        : kind.sign ? num + kind.sign
+        : unit === 'index' ? num
+        : num + (unit === '%' ? ' points' : ' ' + unit);
+      parts.push(c.label + ' ' + txt);
+    });
+    el.title = 'The outer numbers turn purple when the lowest and highest model differ by at least: ' +
+      parts.join(', ') + '. Sky turns purple when fewer than half the models give the same summary. ' +
+      'Click a column header for its own note.';
+  }
+
   function renderAvg() {
     renderSeg('#avg', 'avg', state.avg);
     var k = $('.k.mean');
@@ -1371,6 +1395,7 @@
     renderSeg('#units', 'units', state.units);
     renderSeg('#step', 'step', state.step);
     renderAvg();
+    renderDisagree();
     applyTheme();
     renderColumns();
     renderHead();
@@ -1426,6 +1451,7 @@
       save();
       renderSeg('#units', 'units', state.units);
       renderColumns();
+      renderDisagree();
       refresh();
     });
     $('#step').addEventListener('click', function (ev) {

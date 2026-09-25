@@ -217,6 +217,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .k { font-variant-numeric: tabular-nums; }
 .k.lo, .k.hi { color: var(--dim-bg); font-size: .85em; opacity: .8; }
 .k.mean { color: var(--text-bg); }
+.hint { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 
 /* search + current place, side by side */
 .where {
