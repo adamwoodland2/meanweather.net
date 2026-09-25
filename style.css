@@ -549,6 +549,7 @@ main:focus { outline: none; }
 .stat.code .agree            { color: var(--faint); font-size: .72em; margin-left: 5px; }
 
 .stat.zero .mean { color: var(--dim); font-weight: 500; }
+.stat.single .mean { margin: 0; }
 .stat.none, .stat.blank { color: var(--faint); }
 
 /* drift arrow: change in the models' mean since their run three days ago (fixed slot keeps alignment) */

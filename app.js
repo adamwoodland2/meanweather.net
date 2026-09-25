@@ -114,7 +114,7 @@
     { key: 'sun',       label: 'Sunshine',   kind: 'sunH',   hkind: 'sunMin', daily: 'sunshine_duration', hourly: 'sunshine_duration',   wide: 10800, hwide: 1800,
       desc: 'Hours of direct sunshine in the day (minutes in the hour rows). Not published by JMA.' },
     { key: 'uv',        label: 'UV',         kind: 'uv',     daily: 'uv_index_max',                  hourly: 'uv_index',                  wide: 3,
-      desc: 'Peak clear-sky UV index. GFS is the only model that publishes it, so there is no spread.' },
+      desc: 'Peak clear-sky UV index. GFS is the only model that publishes it, so the cell shows that single value instead of a min–mean–max spread.' },
     { key: 'sky',       label: 'Sky',        kind: 'code',   daily: 'weather_code',                  hourly: 'weather_code',
       desc: 'The most common weather summary across the models (WMO code); the day value is each model’s most severe hour. Hover or tap for what every model says.' }
   ];
@@ -739,6 +739,10 @@
       return '<td class="' + cls + '"' + title + attrs + '><span class="mean">' + esc(wmo(d.code)) +
         '</span><span class="agree">' + d.agree + '/' + d.n + '</span></td>';
     }
+    // one contributing model: show its value alone rather than a fake min/mean/max spread
+    if (d.n === 1) {
+      return '<td class="' + cls + ' single"' + title + attrs + '><span class="mean">' + d.mean + (kind.sign || '') + '</span></td>';
+    }
     var drift = '';
     if (!hourly && col.drift) {
       var dr = d.drift;
@@ -890,6 +894,7 @@
       if (!d.n) { box.appendChild(el('p', 'n', 'No model has a value here.')); return; }
       var sum = el('p', 'n');
       if (kind.categorical) sum.textContent = d.agree + ' of ' + d.n + ' models say ' + wmo(d.code) + '.';
+      else if (d.n === 1) sum.textContent = 'One source only, so no spread to show.';
       else sum.textContent = 'min ' + d.lo + ' · ' + state.avg + ' ' + d.mean + (kind.sign || '') + ' · max ' + d.hi +
         (kind.sign ? '' : ' ' + kind.unit(imperial())) + ' · ' + d.n + ' of ' + d.N + ' sources';
       box.appendChild(sum);
