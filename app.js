@@ -147,7 +147,8 @@
   var MAX_PLACES = 10;       // recent-places tabs kept
 
   var state = {
-    place: null,          // the active entry of `places`
+    place: null,          // the active entry of `places` (or a temporary place from a ?tmp=1 link)
+    savedPlace: null,     // the last remembered place, kept when a temporary one is showing
     places: [],           // [{name, where, lat, lon, used}] in the order added
     units: 'metric',      // 'metric' | 'imperial'
     step: 3,              // hours per row when a day is expanded: 3 (default) or 1
@@ -240,6 +241,7 @@
       state.place = state.places.filter(function (p) { return samePlace(p, saved.place); })[0] || null;
       if (!state.place) { state.place = rememberPlace(saved.place); }
     }
+    state.savedPlace = state.place;
     state.units = saved.units === 'imperial' ? 'imperial' : 'metric';
     state.step = saved.step === 1 ? 1 : 3;
     state.avg = saved.avg === 'median' ? 'median' : 'mean';
@@ -260,7 +262,9 @@
     var q = new URLSearchParams(location.search);
     var at = (q.get('at') || '').split(',');
     if (at.length === 2 && isFinite(+at[0]) && isFinite(+at[1])) {
-      state.place = rememberPlace({ name: q.get('n') || (+at[0]).toFixed(2) + ', ' + (+at[1]).toFixed(2), where: q.get('w') || '', lat: +at[0], lon: +at[1] });
+      var linked = { name: q.get('n') || (+at[0]).toFixed(2) + ', ' + (+at[1]).toFixed(2), where: q.get('w') || '', lat: +at[0], lon: +at[1] };
+      if (q.get('tmp') === '1') { linked.temp = true; state.place = linked; }   // e.g. nearest.land's "Weather here": show, don't remember
+      else { state.place = rememberPlace(linked); state.savedPlace = state.place; }
     }
     if (q.get('units') === 'imperial' || q.get('units') === 'metric') state.units = q.get('units');
     if (q.get('step') === '3' || q.get('step') === '1') state.step = +q.get('step');
@@ -271,7 +275,7 @@
   function save() {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({
-        place: state.place, places: state.places,
+        place: state.place && state.place.temp ? state.savedPlace : state.place, places: state.places,
         units: state.units, step: state.step, avg: state.avg, mode: state.mode,
         enabled: state.enabled, cols: state.cols
       }));
@@ -290,6 +294,7 @@
     if (imperial()) q.set('units', 'imperial');
     if (state.step === 1) q.set('step', '1');
     if (state.avg === 'median') q.set('avg', 'median');
+    if (state.place.temp) q.set('tmp', '1');
     try { history.replaceState(null, '', location.pathname + '?' + q.toString()); } catch (e) { /* file:// etc. */ }
   }
 
@@ -1152,6 +1157,7 @@
   // make `p` the active place (adding it to the tabs if new) and load its forecast
   function setPlace(p) {
     state.place = rememberPlace(p);
+    state.savedPlace = state.place;
     state.open = {};
     save();
     refresh();
@@ -1407,7 +1413,7 @@
     });
 
     if (state.place) { save(); refresh(); }
-    else guessPlace().then(function (p) { state.place = rememberPlace(p); save(); refresh(); });
+    else guessPlace().then(function (p) { state.place = rememberPlace(p); state.savedPlace = state.place; save(); refresh(); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
