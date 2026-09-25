@@ -17,6 +17,11 @@ Technical: single static page (index.html, style.css, app.js), MIT-licensed, no 
 - [Forecast table](https://meanweather.net/): the app itself
 - [Shareable view](https://meanweather.net/?at=51.5074,-0.1278&n=London): `?at=lat,lon` opens a place directly; optional `n=` (name), `cols=` (comma-separated column keys), `units=imperial`, `step=3`
 
+## Related
+
+- [Adam's Arcade](https://games.adamwoodland.com/): all of the author's free browser games and tools
+- [Adam Woodland](https://adamwoodland.com/): the author, an OT/ICS cybersecurity consultant; this site is a side project
+
 ## Contact
 
 - adam@meanweather.net
